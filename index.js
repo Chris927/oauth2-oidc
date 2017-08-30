@@ -706,7 +706,7 @@ class OAuth2OIDC {
           preferred_username: '(no preferred name set)'
         }
       }
-      const data = f(req.user)
+      const data = f(req.user, req)
       res.send(data)
       next()
     }
