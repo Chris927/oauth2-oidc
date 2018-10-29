@@ -23,7 +23,7 @@ function uriFragmentSeparator(uri) {
 
 function findUser(req, query) {
   if (req.state.findUser) {
-    return req.state.findUser(query) // Can use request level cache
+    return req.state.findUser(req, query) // Can use request level cache
   } else {
     return req.state.collections.user.findOne(query)
   }
