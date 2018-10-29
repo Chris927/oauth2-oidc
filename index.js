@@ -21,6 +21,14 @@ function uriFragmentSeparator(uri) {
   return uri.match(/\#/) ? '&' : '#'
 }
 
+function findUser(req, query) {
+  if (req.state.findUser) {
+    return req.findUser(query) // Can use request level cache
+  } else {
+    return req.state.collections.user.findOne(query)
+  }
+}
+
 class OAuth2OIDC {
 
   constructor(options) {
@@ -353,7 +361,7 @@ class OAuth2OIDC {
             error_description: 'sub, redirect_uri and scope are required'
           })
         }
-        Promise.resolve(req.state.collections.user.findOne({ sub: sub })).then((foundUser) => {
+        findUser(req, { sub: sub }).then((foundUser) => {
           debug('foundUser', foundUser)
           if (!foundUser) {
             debug('user not found: ' + sub)
@@ -420,7 +428,8 @@ class OAuth2OIDC {
         next()
       },
       (req, res, next) => {
-        Promise.resolve(req.state.collections.user.findOne({ id: req.auth.user })).then((user) => {
+        findUser(req, { id: req.auth.user })
+        .then((user) => {
           req.session && (req.session.user = user) // keep user in session (if there is a session)
           debug('magicopen, user', user)
           next()
@@ -498,8 +507,8 @@ class OAuth2OIDC {
     })
   }
 
-  _userViaUsernameAndPassword(collections, body) {
-    return collections.user.findOne({ sub: body.username }).then((user) => {
+  _userViaUsernameAndPassword(req, body) {
+    return findUser(req, { sub: body.username }).then((user) => {
       if (user && user.samePassword(body.password)) {
         user = user
         return Promise.resolve(user)
@@ -559,7 +568,7 @@ class OAuth2OIDC {
           })
         } else if (req.body.grant_type == 'password') {
           debug('token via password', req.client, req.body)
-          this._userViaUsernameAndPassword(req.state.collections, req.body).then((user) => { // TODO: duplication from here
+          this._userViaUsernameAndPassword(req, req.body).then((user) => { // TODO: duplication from here
             req.user = user
             return req.state.collections.auth.create({
               client: req.client.id,
@@ -615,7 +624,7 @@ class OAuth2OIDC {
         }
         req.token = token
         debug('token found', token)
-        return collections.user.findOne({ id: token.user })
+        return findUser(req, { id: token.user })
       }).then((user) => {
         if (!user) {
           debug('user of token not found', req.token)
